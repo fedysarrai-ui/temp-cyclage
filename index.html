@@ -249,11 +249,21 @@ async function syncAll() {
       // Garder les séries déjà en mémoire (embarquées ou importées)
       rows.forEach(r => {
         const h = r.host;
+        if (!h) return;
+        // Normaliser les nombres (virgule → point, fallback sur seed embarqué)
+        const toNum = (v, fallback) => {
+          const n = parseFloat(String(v).replace(',', '.'));
+          return isNaN(n) ? fallback : n;
+        };
+        const seed = DB[page].stats[h]; // valeurs embarquées comme fallback
         d.hosts.push(h);
         d.colors[h] = r.color || pickColor(page);
-        d.stats[h]  = {min: +r.min, max: +r.max, mean: +r.mean};
+        d.stats[h]  = {
+          min:  toNum(r.min,  seed ? seed.min  : 0),
+          max:  toNum(r.max,  seed ? seed.max  : 0),
+          mean: toNum(r.mean, seed ? seed.mean : 0)
+        };
         d.names[h]  = r.name || h;
-        // Séries : depuis Sheets si dispo, sinon garder celles en mémoire
         if (r.series && r.series.length > 2) {
           try { d.series[h] = JSON.parse(r.series); } catch(e) {}
         }
