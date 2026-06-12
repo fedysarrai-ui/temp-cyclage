@@ -181,7 +181,7 @@ const DB = {
 };
 
 // ── URL Apps Script ────────────────────────────────────────────────────
-let SCRIPT_URL = 'https://script.google.com/a/macros/foodles.co/s/AKfycbwQMHHktiYki0SWJxtenfsvR4vS0oVSXvHT_icSPSjRcl9rSFWhrPFX_MEFAnIpOwe7/exec';
+let SCRIPT_URL = 'https://script.google.com/a/macros/foodles.co/s/AKfycbzvQmaO17ZKtWrGTBEJWSVR4kVMyVmhdQkZhipT1-lkCNtBNi3PrODlAGXmVhlTqxcp/exec';
 function onUrlChange() {}
 
 function setSyncStatus(msg, cls='') {
@@ -190,12 +190,31 @@ function setSyncStatus(msg, cls='') {
 }
 
 // ── Sync : charger depuis Sheets ───────────────────────────────────────
+function jsonp(url) {
+  return new Promise((resolve, reject) => {
+    const cbName = '_cb_' + Math.random().toString(36).slice(2);
+    const script = document.createElement('script');
+    const timer = setTimeout(() => {
+      delete window[cbName];
+      script.remove();
+      reject(new Error('Timeout'));
+    }, 10000);
+    window[cbName] = data => {
+      clearTimeout(timer);
+      delete window[cbName];
+      script.remove();
+      resolve(data);
+    };
+    script.src = url + (url.includes('?') ? '&' : '?') + 'callback=' + cbName;
+    script.onerror = () => { clearTimeout(timer); reject(new Error('Erreur réseau')); };
+    document.head.appendChild(script);
+  });
+}
+
 async function loadFromSheets(page) {
-  const res = await fetch(`${SCRIPT_URL}?page=${page}`);
-  if (!res.ok) throw new Error('HTTP ' + res.status);
-  const json = await res.json();
-  if (!json.ok) throw new Error(json.error || 'Erreur inconnue');
-  return json.data; // [{host, name, min, max, mean, color, series}, ...]
+  const data = await jsonp(`${SCRIPT_URL}?page=${page}`);
+  if (!data.ok) throw new Error(data.error || 'Erreur inconnue');
+  return data.data;
 }
 
 // ── Sync : sauvegarder vers Sheets ────────────────────────────────────
@@ -210,14 +229,10 @@ async function saveToSheets(page) {
     color:  d.colors[h],
     series: d.series[h] ? JSON.stringify(d.series[h]) : ''
   }));
-  const res = await fetch(SCRIPT_URL, {
-    method: 'POST',
-    body: JSON.stringify({page, data})
-  });
-  if (!res.ok) throw new Error('HTTP ' + res.status);
-  const json = await res.json();
-  if (!json.ok) throw new Error(json.error || 'Erreur inconnue');
-  return json.saved;
+  const payload = encodeURIComponent(JSON.stringify({page, data}));
+  const result = await jsonp(`${SCRIPT_URL}?action=save&payload=${payload}`);
+  if (!result.ok) throw new Error(result.error || 'Erreur inconnue');
+  return result.saved;
 }
 
 // ── Sync globale ───────────────────────────────────────────────────────
