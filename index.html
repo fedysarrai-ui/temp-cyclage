@@ -240,30 +240,37 @@ async function syncAll() {
   if (!SCRIPT_URL) return;
   setSyncStatus('Chargement…', 'loading');
   try {
-    // Charger les deux pages
     for (const page of ['vide', 'food']) {
       const rows = await loadFromSheets(page);
+
+      // Si Sheets vide → sauvegarder les seeds actuelles (déjà dans DB) et continuer
+      if (!rows || rows.length === 0) {
+        await saveToSheets(page);
+        continue;
+      }
+
+      // Sheets non vide → remplacer DB par ce qui est dans Sheets
       const d = DB[page];
+      const oldSeries = {...d.series}; // garder les séries en mémoire
       d.hosts  = [];
       d.colors = {}; d.stats = {}; d.names = {};
-      // Garder les séries déjà en mémoire (embarquées ou importées)
       rows.forEach(r => {
         const h = r.host;
         if (!h) return;
-        // Normaliser les nombres (virgule → point, fallback sur seed embarqué)
         const toNum = (v, fallback) => {
           const n = parseFloat(String(v).replace(',', '.'));
           return isNaN(n) ? fallback : n;
         };
-        const seed = DB[page].stats[h]; // valeurs embarquées comme fallback
         d.hosts.push(h);
         d.colors[h] = r.color || pickColor(page);
         d.stats[h]  = {
-          min:  toNum(r.min,  seed ? seed.min  : 0),
-          max:  toNum(r.max,  seed ? seed.max  : 0),
-          mean: toNum(r.mean, seed ? seed.mean : 0)
+          min:  toNum(r.min,  0),
+          max:  toNum(r.max,  0),
+          mean: toNum(r.mean, 0)
         };
-        d.names[h]  = r.name || h;
+        d.names[h] = r.name || h;
+        // Restaurer les séries depuis la mémoire si dispo
+        if (oldSeries[h]) d.series[h] = oldSeries[h];
         if (r.series && r.series.length > 2) {
           try { d.series[h] = JSON.parse(r.series); } catch(e) {}
         }
