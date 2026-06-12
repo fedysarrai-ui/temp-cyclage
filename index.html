@@ -221,13 +221,13 @@ async function loadFromSheets(page) {
 async function saveToSheets(page) {
   const d = DB[page];
   const data = d.hosts.map(h => ({
-    host:   h,
-    name:   d.names[h],
-    min:    d.stats[h].min,
-    max:    d.stats[h].max,
-    mean:   d.stats[h].mean,
-    color:  d.colors[h],
-    series: d.series[h] ? JSON.stringify(d.series[h]) : ''
+    host:  h,
+    name:  d.names[h],
+    min:   d.stats[h].min,
+    max:   d.stats[h].max,
+    mean:  d.stats[h].mean,
+    color: d.colors[h],
+    series: '' // séries trop lourdes pour l'URL, restent embarquées dans le HTML
   }));
   const payload = encodeURIComponent(JSON.stringify({page, data}));
   const result = await jsonp(`${SCRIPT_URL}?action=save&payload=${payload}`);
