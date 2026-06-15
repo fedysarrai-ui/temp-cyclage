@@ -40,11 +40,11 @@ main{max-width:1100px;margin:0 auto;padding:2.5rem 2rem}
 .import-btn:hover{background:rgba(37,99,235,0.28);border-color:rgba(37,99,235,0.6);color:#fff}
 .import-feedback{font-size:11px;margin-top:6px;display:none}
 .import-feedback.error{color:#f87171}.import-feedback.success{color:#86efac}
-.axis-row{display:grid;grid-template-columns:150px 1fr 110px;gap:20px;margin-bottom:8px}
+.axis-row{display:grid;grid-template-columns:150px 1fr 110px 80px;gap:20px;margin-bottom:8px}
 .axis-track{display:flex;justify-content:space-between;padding:0 2px;font-size:10px;color:var(--muted)}
 .axis-line{border:none;border-top:1px solid rgba(255,255,255,0.07);margin-bottom:1.6rem;margin-left:170px}
 .range-list{display:flex;flex-direction:column;gap:22px}
-.range-row{display:grid;grid-template-columns:150px 1fr 110px;align-items:center;gap:20px;border-radius:8px;padding:6px 4px;transition:background 0.15s}
+.range-row{display:grid;grid-template-columns:150px 1fr 110px 80px;align-items:center;gap:20px;border-radius:8px;padding:6px 4px;transition:background 0.15s}
 .range-row:hover{background:rgba(255,255,255,0.04)}
 .range-name-wrap{display:flex;align-items:center;gap:5px;min-width:0}
 .range-name{font-size:13px;color:var(--text);font-family:monospace;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;cursor:pointer;transition:color 0.15s;flex:1;min-width:0}
@@ -58,7 +58,14 @@ main{max-width:1100px;margin:0 auto;padding:2.5rem 2rem}
 .range-row:hover .range-bar-fill{opacity:1}
 .range-mean-tick{position:absolute;width:3px;height:26px;top:-4px;border-radius:2px}
 .range-vals{font-size:12px;color:var(--muted);font-family:monospace;white-space:nowrap;text-align:right}
-.name-input{font-size:13px;font-family:monospace;background:rgba(37,99,235,0.1);border:1px solid var(--accent);border-radius:4px;color:var(--text);padding:1px 6px;width:130px;outline:none}
+.range-ambient{font-size:12px;color:var(--muted);font-family:monospace;text-align:right;white-space:nowrap}
+.range-ambient input{width:64px;background:rgba(255,255,255,0.05);border:1px solid transparent;border-radius:4px;color:var(--muted);font-size:12px;font-family:monospace;text-align:right;padding:2px 4px;outline:none;transition:all 0.15s}
+.range-ambient input:hover{border-color:rgba(255,255,255,0.15);color:var(--text)}
+.range-ambient input:focus{border-color:var(--accent);color:var(--text);background:rgba(37,99,235,0.1)}
+.col-header-row{display:grid;grid-template-columns:150px 1fr 110px 80px;gap:20px;margin-bottom:6px;padding:0 4px}
+.col-header{font-size:10px;color:var(--muted);text-align:right}
+.col-header:nth-child(2){text-align:left}
+.name-input{font-size:13px;font-family:monospace;background:rgba(37,99,235,0.1);border:1px solid var(--accent);border-radius:4px;color:var(--text);padding:1px 6px;width:100%;min-width:0;outline:none}
 .empty-state{text-align:center;padding:3rem 1rem;color:var(--muted);font-size:13px}
 footer{margin-top:2rem;padding:1rem 2rem;border-top:1px solid var(--border);font-size:11px;color:var(--muted);display:flex;justify-content:space-between}
 .modal-overlay{display:none;position:fixed;inset:0;background:rgba(0,0,0,0.7);z-index:500;align-items:center;justify-content:center;backdrop-filter:blur(4px)}
@@ -176,12 +183,12 @@ const V_SERIES_INIT = {"dreary-dew": [{"t": "2026-06-11T09:31:00.000Z", "v": 1.5
 
 // DB : chargé depuis Sheets ou initialisé depuis les seeds
 const DB = {
-  vide: { hosts:[], colors:{}, stats:{}, series:{...V_SERIES_INIT}, names:{} },
-  food: { hosts:[], colors:{}, stats:{}, series:{}, names:{} }
+  vide: { hosts:[], colors:{}, stats:{}, series:{...V_SERIES_INIT}, names:{}, ambient:{} },
+  food: { hosts:[], colors:{}, stats:{}, series:{}, names:{}, ambient:{} }
 };
 
 // ── URL Apps Script ────────────────────────────────────────────────────
-let SCRIPT_URL = 'https://script.google.com/a/macros/foodles.co/s/AKfycbzM0uMuvFSQU4imhk1gEEKO_7Z2s9MQZ4uqX5rBfO4YtfRPv9vxtH6lP5FJUBICn14m/exec';
+let SCRIPT_URL = 'https://script.google.com/a/macros/foodles.co/s/AKfycbwt_ni4ypW9tq4RQRUzvVGSBcdoYEJLxlr4dbaE2PHkREjYNCM2wv7hFd9w6NTsxuET/exec';
 function onUrlChange() {}
 
 function setSyncStatus(msg, cls='') {
@@ -221,13 +228,14 @@ async function loadFromSheets(page) {
 async function saveToSheets(page) {
   const d = DB[page];
   const data = d.hosts.map(h => ({
-    host:  h,
-    name:  d.names[h],
-    min:   d.stats[h].min,
-    max:   d.stats[h].max,
-    mean:  d.stats[h].mean,
-    color: d.colors[h],
-    series: '' // séries trop lourdes pour l'URL, restent embarquées dans le HTML
+    host:    h,
+    name:    d.names[h],
+    min:     d.stats[h].min,
+    max:     d.stats[h].max,
+    mean:    d.stats[h].mean,
+    color:   d.colors[h],
+    ambient: d.ambient[h] || '',
+    series:  ''
   }));
   const payload = encodeURIComponent(JSON.stringify({page, data}));
   const result = await jsonp(`${SCRIPT_URL}?action=save&payload=${payload}`);
@@ -269,6 +277,7 @@ async function syncAll() {
           mean: toNum(r.mean, 0)
         };
         d.names[h] = r.name || h;
+        d.ambient[h] = r.ambient || '';
         // Restaurer les séries depuis la mémoire si dispo
         if (oldSeries[h]) d.series[h] = oldSeries[h];
         if (r.series && r.series.length > 2) {
@@ -344,7 +353,6 @@ function buildKPIs(ns) {
 function buildAxis(ns) {
   document.getElementById('axis-' + ns).innerHTML = [0,1,2,3,4,5].map(v=>`<span>${v}°C</span>`).join('');
 }
-
 function buildRanges(ns) {
   const d = DB[ns];
   const withModal = ns === 'vide';
@@ -353,10 +361,17 @@ function buildRanges(ns) {
     return;
   }
   const sorted = [...d.hosts].sort((a,b) => d.stats[a].mean - d.stats[b].mean);
-  document.getElementById('ranges-' + ns).innerHTML = sorted.map(h => {
+  const colHeaders = `<div class="col-header-row">
+    <div class="col-header" style="text-align:left">Frigo</div>
+    <div class="col-header"></div>
+    <div class="col-header">Min → Max</div>
+    <div class="col-header">T° ambiante</div>
+  </div>`;
+  const rows = sorted.map(h => {
     const s=d.stats[h], c=d.colors[h];
     const lp=pct(s.min), wp=pct(s.max)-pct(s.min), mp=pct(s.mean);
     const barClick = withModal ? `onclick="openModal('${h}','${ns}')" style="cursor:pointer"` : '';
+    const ambVal = d.ambient[h] || '';
     return `<div class="range-row">
       <div class="range-name-wrap">
         <span class="range-name" onclick="startEdit('${h}','${ns}')">${d.names[h]}</span>
@@ -368,8 +383,15 @@ function buildRanges(ns) {
         <div class="range-mean-tick" style="left:${mp}%;background:${c}"></div>
       </div>
       <div class="range-vals">${s.min.toFixed(2)} → ${s.max.toFixed(2)}°C</div>
+      <div class="range-ambient">
+        <input type="text" value="${ambVal}" placeholder="—°C"
+          onchange="setAmbient('${h}','${ns}',this.value)"
+          onclick="event.stopPropagation()"
+          title="T° ambiante lors du test">
+      </div>
     </div>`;
   }).join('');
+  document.getElementById('ranges-' + ns).innerHTML = colHeaders + rows;
 }
 
 function refresh(ns) { buildKPIs(ns); buildRanges(ns); }
@@ -402,8 +424,14 @@ function startEdit(h, ns) {
 function deleteFridge(h, ns) {
   const d = DB[ns];
   d.hosts = d.hosts.filter(x => x !== h);
-  delete d.colors[h]; delete d.stats[h]; delete d.series[h]; delete d.names[h];
+  delete d.colors[h]; delete d.stats[h]; delete d.series[h]; delete d.names[h]; delete d.ambient[h];
   refresh(ns);
+  scheduleSave(ns);
+}
+
+// ── T° ambiante ────────────────────────────────────────────────────────
+function setAmbient(h, ns, val) {
+  DB[ns].ambient[h] = val.trim();
   scheduleSave(ns);
 }
 
@@ -444,7 +472,8 @@ function importCSV(event, ns) {
         d.hosts.push(key);
         d.colors[key] = pickColor(ns);
         d.stats[key]  = {min:+Math.min(...vals).toFixed(4), max:+Math.max(...vals).toFixed(4), mean:+(vals.reduce((a,b)=>a+b,0)/vals.length).toFixed(4)};
-        d.names[key]  = key;
+        d.names[key]   = key;
+        d.ambient[key] = '';
         if (timeIdx!==-1) d.series[key] = pts.filter(p=>p.t).map(p=>({t:p.t, v:p.v}));
         added.push(key);
       });
